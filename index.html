@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="apple-touch-icon" href="icon.png">
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Princess Cruise Value Tracker</title>
@@ -44,6 +43,8 @@ label{display:block;font-weight:700;color:var(--deep);font-size:14px;margin-bott
 .photoBtn{display:inline-block;margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:9px 12px;color:var(--navy);font-weight:800;background:#fff;cursor:pointer}
 .face img{width:100%;height:100%;object-fit:cover;border-radius:999px}
 .warnText{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.35}
+.btn.danger{background:#fff;color:#b3261e;border:1px solid #f0b8b3}
+.btn.danger:active{background:#fff1f0}
 </style>
 </head>
 <body>
@@ -183,7 +184,7 @@ function loadPhoto(e,i){
   <div class="pad">
     <div class="card"><p class="note">Today's Total — Your Party</p><div class="bigNum" id="sumToday">$0.00</div></div>
     <div class="card"><h3>Party Result</h3><div id="partyResult"></div></div>
-    <button class="btn">CONFIRM DAY COMPLETE</button>
+    <button class="btn" onclick="confirmDay()">CONFIRM DAY COMPLETE</button>
     <p class="note" style="text-align:center">If not confirmed, the day auto-confirms at 7:00am the next morning.</p>
     <button class="btn" onclick="go('track')">CONTINUE CRUISING</button>
     <button class="btn secondary" onclick="go('dashboard')">VIEW DASHBOARD</button>
@@ -202,6 +203,10 @@ function loadPhoto(e,i){
     </div>
     <div class="row"><button class="btn" onclick="go('track')">CONTINUE CRUISING</button><button class="btn secondary" onclick="go('person')">PASSENGERS</button></div>
     <button class="btn secondary" onclick="go('history')">DAY HISTORY</button>
+    <div class="row">
+      <button class="btn" onclick="endCruise()">END CRUISE</button>
+      <button class="btn danger" onclick="clearCruise()">CLEAR CRUISE</button>
+    </div>
   </div>
 </section>
 
@@ -222,6 +227,28 @@ function loadPhoto(e,i){
   </div>
 </section>
 
+<section id="finalCruise" class="screen">
+  <div class="header"><div class="headerRow"><button class="back" onclick="go('dashboard')">‹ Back</button><h2>Final Cruise Summary</h2><span></span></div></div>
+  <div class="pad">
+    <div class="card"><h3>Final Recommendation</h3><div id="finalResult"></div></div>
+    <div class="card"><h3>Total Spend Per Person</h3><div id="finalPeople"></div></div>
+    <div class="card"><h3>Package Comparison</h3><div id="finalPackages"></div></div>
+    <button class="btn secondary" onclick="go('cruiseHistory')">VIEW CRUISE HISTORY</button>
+    <button class="btn secondary" onclick="go('dashboard')">BACK TO DASHBOARD</button>
+  </div>
+</section>
+
+<section id="cruiseHistory" class="screen">
+  <div class="header"><div class="headerRow"><button class="back" onclick="go('dashboard')">‹ Back</button><h2>Cruise History</h2><span></span></div></div>
+  <div class="pad">
+    <div class="card">
+      <h3>Saved Cruise Records</h3>
+      <div id="historyRecords"></div>
+    </div>
+    <button class="btn secondary" onclick="go('dashboard')">BACK TO DASHBOARD</button>
+  </div>
+</section>
+
 </div>
 
 <script>
@@ -233,9 +260,9 @@ const items=[
 ];
 function blank(){return {cruiseId:'',cruiseName:'',ship:'Sky Princess',days:1,deck:'',cabin:'',cabinType:'',pkg:'',prices:{Standard:null,Plus:null,Premier:null},gratRate:null,serviceCharge:20,wifiOne:null,wifiFour:null,eliteWifi:false,people:[{name:'You',photo:''}],entries:[],day:1,wifiTracking:true}}
 function newCruise(){app=blank(); localStorage.setItem('cruiseApp',JSON.stringify(app)); fillSetup(); go('setup1')}
-function load(){app=JSON.parse(localStorage.getItem('cruiseApp')||'null')||blank(); fillSetup()}
+function load(){app=JSON.parse(localStorage.getItem('cruiseApp')||'null')||blank(); if(!Array.isArray(app.lockedDays))app.lockedDays=[]; if(!Array.isArray(app.cruiseHistory))app.cruiseHistory=[]; app.cruiseEnded=!!app.cruiseEnded; fillSetup()}
 function save(){localStorage.setItem('cruiseApp',JSON.stringify(app))}
-function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active'); if(id==='track')renderTrack(); if(id==='summary')renderSummary(); if(id==='dashboard')renderDash(); if(id==='person')renderPerson(); if(id==='history')renderHistory();}
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active'); if(id==='track')renderTrack(); if(id==='summary')renderSummary(); if(id==='dashboard')renderDash(); if(id==='person')renderPerson(); if(id==='history')renderHistory(); if(id==='finalCruise')renderFinalCruise(); if(id==='cruiseHistory')renderCruiseHistory();}
 function fillSetup(){['cruiseId','cruiseName','days','deck','cabin'].forEach(k=>{let e=document.getElementById(k); if(e)e.value=app[k]||''}); if(document.getElementById('ship'))ship.value=app.ship; if(document.getElementById('cabinType'))cabinType.value=app.cabinType||''; setPackage(app.pkg); if(document.getElementById('wifiOne'))wifiOne.value=app.wifiOne||''; if(document.getElementById('wifiFour'))wifiFour.value=app.wifiFour||''; setElite(app.eliteWifi||false); renderPeopleInputs();}
 function setPackage(p){app.pkg=p; document.querySelectorAll('#packageChoices .choice').forEach(b=>b.classList.toggle('active',b.textContent===p)); save();}
 function setElite(v){
@@ -360,6 +387,14 @@ function processEntry(label,group,raw,svc){
   return {value:raw,included:0};
 }
 function addEntry(){
+  if(app.cruiseEnded){
+    alert('This cruise has ended and is locked.');
+    return;
+  }
+  if(isDayLocked(app.day)){
+    alert('This day is locked. To add more items, move to the current open day.');
+    return;
+  }
   let p=+entryPrice.value;if(!p)return;
   let out=processEntry(selected.label,selected.group,p,selected.svc);
   app.entries.push({day:app.day,person:activePerson,label:selected.label,group:selected.group,value:out.value,raw:p,included:out.included||0,note:out.note||''});
@@ -468,7 +503,8 @@ function renderHistory(){
     const cost=packageCostToDay(d);
     const diff=rolling-cost;
     html += `<div class="card" style="margin-top:12px">
-      <h3>Day ${d}</h3>
+      <h3>Day ${d} ${isDayLocked(d)?'🔒':''}</h3>
+      <div class="metric"><span>Status</span><b>${isDayLocked(d)?'Locked':'Open'}</b></div>
       <div class="metric"><span>Purchases entered</span><b>${money(entered)}</b></div>
       <div class="metric"><span>Charged purchase value</span><b>${money(purchase)}</b></div>
       <div class="metric"><span>Automatic / included value</span><b>${money(auto+included)}</b></div>
@@ -477,6 +513,100 @@ function renderHistory(){
     </div>`;
   }
   list.innerHTML=html || '<p class="note">No days recorded yet.</p>';
+}
+function isDayLocked(day){
+  return Array.isArray(app.lockedDays) && app.lockedDays.includes(Number(day));
+}
+function confirmDay(){
+  if(!Array.isArray(app.lockedDays)) app.lockedDays=[];
+  if(!app.lockedDays.includes(Number(app.day))) app.lockedDays.push(Number(app.day));
+  if(!Array.isArray(app.confirmedDays)) app.confirmedDays=[];
+  if(!app.confirmedDays.includes(Number(app.day))) app.confirmedDays.push(Number(app.day));
+  app.day += 1;
+  save();
+  go('track');
+}
+function finalRecord(){
+  const best = bestPackage();
+  const total = totalSpend();
+  const cost = packageCost();
+  const diff = total - cost;
+  return {
+    savedAt: new Date().toISOString(),
+    cruiseName: app.cruiseName || 'Cruise',
+    ship: app.ship || '',
+    deck: app.deck || '',
+    cabin: app.cabin || '',
+    packageChosen: app.pkg || 'Not set',
+    bestPackage: best,
+    totalValue: total,
+    packageCost: cost,
+    winLoss: diff,
+    people: app.people.map((p,i)=>({
+      name: p.name || ('Passenger '+(i+1)),
+      total: app.entries.filter(e=>Number(e.person)===Number(i)).reduce((a,e)=>a+Number(e.value||0)+Number(e.included||0),0)
+    })),
+    packageComparison: ['Standard','Plus','Premier'].map(p=>({
+      package:p,
+      cost:(app.prices[p]||0)*app.day*app.people.length,
+      difference:total-((app.prices[p]||0)*app.day*app.people.length)
+    }))
+  };
+}
+function endCruise(){
+  if(!confirm('End this cruise and save a permanent history record? This will lock the cruise.')) return;
+  if(!Array.isArray(app.cruiseHistory)) app.cruiseHistory=[];
+  const rec = finalRecord();
+  app.cruiseHistory.push(rec);
+  app.cruiseEnded = true;
+  if(!Array.isArray(app.lockedDays)) app.lockedDays=[];
+  for(let d=1; d<=app.day; d++){
+    if(!app.lockedDays.includes(d)) app.lockedDays.push(d);
+  }
+  save();
+  go('finalCruise');
+}
+function clearCruise(){
+  if(!confirm('Clear this cruise? This will delete all entered data for this cruise and no permanent history record will be saved.')) {
+    go('dashboard');
+    return;
+  }
+  const existingHistory = Array.isArray(app.cruiseHistory) ? app.cruiseHistory : [];
+  app = blank();
+  app.cruiseHistory = existingHistory;
+  save();
+  fillSetup();
+  go('splash');
+}
+function renderFinalCruise(){
+  const rec = finalRecord();
+  if(document.getElementById('finalResult')){
+    finalResult.innerHTML = `<p>Your party had the <b>${rec.packageChosen}</b> package</p>
+      <p>Total value used: <b>${money(rec.totalValue)}</b></p>
+      <p>Package cost: <b>${money(rec.packageCost)}</b></p>
+      <p>Final result: <b class="${rec.winLoss>=0?'green':'red'}">${rec.winLoss>=0?'WIN':'LOSS'} of ${money(Math.abs(rec.winLoss))}</b></p>
+      <p>Best package for your party: <b>${rec.bestPackage}</b></p>`;
+  }
+  if(document.getElementById('finalPeople')){
+    finalPeople.innerHTML = rec.people.map(p=>`<div class="metric"><span>${escapeHtml(p.name)}</span><b>${money(p.total)}</b></div>`).join('');
+  }
+  if(document.getElementById('finalPackages')){
+    finalPackages.innerHTML = rec.packageComparison.map(p=>`<div class="metric"><span>${p.package}</span><b>${money(p.cost)} / ${p.difference>=0?'WIN':'LOSS'} ${money(Math.abs(p.difference))}</b></div>`).join('');
+  }
+}
+function renderCruiseHistory(){
+  const list = document.getElementById('historyRecords');
+  if(!list) return;
+  const hist = Array.isArray(app.cruiseHistory) ? app.cruiseHistory : [];
+  if(!hist.length){ list.innerHTML='<p class="note">No cruise history saved yet.</p>'; return; }
+  list.innerHTML = hist.map((r,idx)=>`<div class="card" style="margin-top:12px">
+    <h3>${escapeHtml(r.cruiseName||('Cruise '+(idx+1)))}</h3>
+    <div class="metric"><span>Ship / Cabin</span><b>${escapeHtml((r.ship||'')+' '+(r.cabin||''))}</b></div>
+    <div class="metric"><span>Package chosen</span><b>${escapeHtml(r.packageChosen||'')}</b></div>
+    <div class="metric"><span>Best package</span><b>${escapeHtml(r.bestPackage||'')}</b></div>
+    <div class="metric"><span>Total value</span><b>${money(r.totalValue)}</b></div>
+    <div class="metric"><span>Result</span><b class="${(r.winLoss||0)>=0?'green':'red'}">${(r.winLoss||0)>=0?'WIN':'LOSS'} ${money(Math.abs(r.winLoss||0))}</b></div>
+  </div>`).join('');
 }
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 load();
