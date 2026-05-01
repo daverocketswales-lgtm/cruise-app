@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="manifest" href="manifest.json">
+
 <link rel="apple-touch-icon" href="icon.png">
+
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Princess Cruise Value Tracker</title>
@@ -609,7 +612,4 @@ function renderCruiseHistory(){
     <div class="metric"><span>Result</span><b class="${(r.winLoss||0)>=0?'green':'red'}">${(r.winLoss||0)>=0?'WIN':'LOSS'} ${money(Math.abs(r.winLoss||0))}</b></div>
   </div>`).join('');
 }
-function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-load();
-</script>
-</body></html>
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&am
