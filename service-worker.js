@@ -1,11 +1,5 @@
-self.addEventListener('install', function(e) {
-  self.skipWaiting();
-});
+self.addEventListener('install', e => self.skipWaiting());
 
-self.addEventListener('activate', function(e) {
-  return self.clients.claim();
-});
+self.addEventListener('activate', e => self.clients.claim());
 
-self.addEventListener('fetch', function(e) {
-  // basic pass-through (no caching yet)
-});
+self.addEventListener('fetch', e => {});
