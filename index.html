@@ -268,7 +268,11 @@ function load(){app=JSON.parse(localStorage.getItem('cruiseApp')||'null')||blank
 function save(){localStorage.setItem('cruiseApp',JSON.stringify(app))}
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active'); if(id==='track')renderTrack(); if(id==='summary')renderSummary(); if(id==='dashboard')renderDash(); if(id==='person')renderPerson(); if(id==='history')renderHistory(); if(id==='finalCruise')renderFinalCruise(); if(id==='cruiseHistory')renderCruiseHistory();}
 function fillSetup(){['cruiseId','cruiseName','days','deck','cabin'].forEach(k=>{let e=document.getElementById(k); if(e)e.value=app[k]||''}); if(document.getElementById('ship'))ship.value=app.ship; if(document.getElementById('cabinType'))cabinType.value=app.cabinType||''; setPackage(app.pkg); if(document.getElementById('wifiOne'))wifiOne.value=app.wifiOne||''; if(document.getElementById('wifiFour'))wifiFour.value=app.wifiFour||''; setElite(app.eliteWifi||false); renderPeopleInputs();}
-function setPackage(p){app.pkg=p; document.querySelectorAll('#packageChoices .choice').forEach(b=>b.classList.toggle('active',b.textContent===p)); save();}
+function setPackage(p){
+  app.pkg=p;
+  document.querySelectorAll('#packageChoices .choice').forEach(b=>b.classList.toggle('active',b.textContent.trim()===p));
+  save();
+}
 function setElite(v){
   app.eliteWifi=!!v;
   const yes=document.getElementById('eliteYes');
@@ -285,9 +289,41 @@ function setElite(v){
   }
   save();
 }
-function suggestGratuity(){app.cabinType=cabinType.value; suggestedGrat= app.cabinType==='suite'?20:app.cabinType==='mini'?19:app.cabinType==='other'?18:0; gratSuggest.textContent=suggestedGrat?`Suggested gratuity for this cabin type: $${suggestedGrat.toFixed(2)} per person per day.`:'Select a cabin type first.'; save()}
-function useSuggested(){if(suggestedGrat){gratRate.value=suggestedGrat.toFixed(2)}}
-function saveSetup1(){Object.assign(app,{cruiseId:cruiseId.value,cruiseName:cruiseName.value,ship:ship.value,days:+days.value||1,deck:deck.value,cabin:cabin.value,cabinType:cabinType.value}); save(); suggestGratuity(); go('pricing')}
+function suggestGratuity(){
+  const cabinTypeEl=document.getElementById('cabinType');
+  const gratSuggestEl=document.getElementById('gratSuggest');
+  app.cabinType=cabinTypeEl?cabinTypeEl.value:'';
+  suggestedGrat= app.cabinType==='suite'?20:app.cabinType==='mini'?19:app.cabinType==='other'?18:0;
+  if(gratSuggestEl) gratSuggestEl.textContent=suggestedGrat?`Suggested gratuity for this cabin type: $${suggestedGrat.toFixed(2)} per person per day.`:'Select a cabin type first.';
+  save();
+}
+function useSuggested(){
+  const gratRateEl=document.getElementById('gratRate');
+  if(suggestedGrat && gratRateEl) gratRateEl.value=suggestedGrat.toFixed(2);
+}
+function saveSetup1(){
+  const cruiseIdEl=document.getElementById('cruiseId');
+  const cruiseNameEl=document.getElementById('cruiseName');
+  const shipEl=document.getElementById('ship');
+  const daysEl=document.getElementById('days');
+  const deckEl=document.getElementById('deck');
+  const cabinEl=document.getElementById('cabin');
+  const cabinTypeEl=document.getElementById('cabinType');
+
+  Object.assign(app,{
+    cruiseId:cruiseIdEl?cruiseIdEl.value:'',
+    cruiseName:cruiseNameEl?cruiseNameEl.value:'',
+    ship:shipEl?shipEl.value:'',
+    days:daysEl?(+daysEl.value||1):1,
+    deck:deckEl?deckEl.value:'',
+    cabin:cabinEl?cabinEl.value:'',
+    cabinType:cabinTypeEl?cabinTypeEl.value:''
+  });
+
+  save();
+  suggestGratuity();
+  go('pricing');
+}
 function savePricing(){
   app.prices={Standard:num(priceStandard.value),Plus:num(pricePlus.value),Premier:num(pricePremier.value)};
   app.gratRate=num(gratRate.value);
@@ -612,4 +648,7 @@ function renderCruiseHistory(){
     <div class="metric"><span>Result</span><b class="${(r.winLoss||0)>=0?'green':'red'}">${(r.winLoss||0)>=0?'WIN':'LOSS'} ${money(Math.abs(r.winLoss||0))}</b></div>
   </div>`).join('');
 }
-function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&am
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+load();
+</script>
+</body></html>
